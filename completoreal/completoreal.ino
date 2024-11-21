@@ -6,20 +6,16 @@
 #define DT_PIN 26 // Pino OUT do sensor conectado ao pino digital 2 do Arduino
 #define SCK_PIN 27 // Pino SCK do sensor conectado ao pino digital 3 do Arduino
 
-const char* ssid = "TCC";
-const char* password = "Boiola12";
-const char* serverName = "http://192.168.223.208:5050/mensagem/";  // Substitua pelo IP do seu servidor
-
+const char* ssid = "DALGELA";
+const char* password = "veta271284";
+const char* serverName = "http://192.168.15.11:5050/mensagem/";  // Substitua pelo IP do seu servidor
 
 HX711 scale;
 const int sensorP = 34;
 float offset = 0;            // Offset inicial para calibração
 float calibrationFactor = 1.0; // Fator de calibração para conversão em Pascal
 
-
-
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
-
 
 void setup() {
   Wire.begin(21, 22); 
@@ -36,6 +32,7 @@ void setup() {
   offset = scale.read_average(20); // Leitura média para o offset
   calibrationFactor = 0.5; // Ajuste este valor conforme a calibração
   scale.set_scale(calibrationFactor);
+  
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Conectando ao WiFi...");
@@ -46,23 +43,37 @@ void setup() {
 }
 
 void loop() {
+  // Leitura da pressão
   float pressureInPa = (scale.read_average(10) - offset);
   float pressureInMmHg = pressureInPa / 133.322;
+  
+  // Leitura da temperatura
   double temp = mlx.readObjectTempC();
+  
+  // Leitura do sensor de ECG
   int leitura = analogRead(sensorP);
 
+  // Substitui valores NaN por 0
+  if (isnan(temp)) temp = 0.0;
+  if (isnan(pressureInMmHg)) pressureInMmHg = 0.0;
+  if (isnan(leitura)) leitura = 0;
+
+  // Verifica se a conexão WiFi está ativa
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
     http.begin(serverName);
     http.addHeader("Content-Type", "application/json");
 
+    // Criando o JSON de forma segura e garantindo que NaN seja convertido para 0
+    String jsonPayload = "{\"temperatura\": " + String(temp, 2) + ", \"ecg\": " + String(leitura) + ", \"pressao\": " + String(pressureInMmHg, 2) + "}";
 
-    
-    String jsonPayload = "{\"temperatura\": " + String(temp) + ", \"ecg\": " + String(leitura) + ", \"pressao\": "+ String(pressureInMmHg) + "}";
+    // Envia o POST
     int httpResponseCode = http.POST(jsonPayload);
 
+    // Verifica o código de resposta
     if (httpResponseCode > 0) {
       String response = http.getString();
+      Serial.println("Resposta do servidor: " + response);
     } else {
       Serial.print("Erro ao enviar mensagem: ");
       Serial.println(httpResponseCode);
@@ -71,6 +82,12 @@ void loop() {
   } else {
     Serial.println("Erro de conexão WiFi");
   }
-  Serial.println(leitura);
-  delay(100); // Envia a cada 10 segundos
+
+  // Imprime no monitor serial para debug
+  Serial.println("Leitura ECG: " + String(leitura));
+  Serial.println("Temperatura: " + String(temp, 2) + " °C");
+  Serial.println("Pressão: " + String(pressureInMmHg, 2) + " mmHg");
+
+  // Aguarda antes de enviar novamente
+  delay(1); // Envia a cada 10 segundos
 }
