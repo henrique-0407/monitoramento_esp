@@ -5,7 +5,7 @@
 
 #define DT_PIN 26 // Pino OUT do sensor conectado ao pino digital 2 do Arduino
 #define SCK_PIN 27 // Pino SCK do sensor conectado ao pino digital 3 do Arduino
-
+#define sensorB 2
 const char* ssid = "DALGELA";
 const char* password = "veta271284";
 const char* serverName = "http://192.168.15.11:5050/mensagem/";  // Substitua pelo IP do seu servidor
@@ -40,6 +40,7 @@ void setup() {
   Serial.println("Conectado ao WiFi");
 
   pinMode(sensorP, INPUT);
+  pinMode(sensorB, INPUT);
 }
 
 void loop() {
@@ -52,6 +53,8 @@ void loop() {
   
   // Leitura do sensor de ECG
   int leitura = analogRead(sensorP);
+  int leitura1 = digitalRead(sensorB);
+
 
   // Substitui valores NaN por 0
   if (isnan(temp)) temp = 0.0;
@@ -65,7 +68,10 @@ void loop() {
     http.addHeader("Content-Type", "application/json");
 
     // Criando o JSON de forma segura e garantindo que NaN seja convertido para 0
-    String jsonPayload = "{\"temperatura\": " + String(temp, 2) + ", \"ecg\": " + String(leitura) + ", \"pressao\": " + String(pressureInMmHg, 2) + "}";
+  String jsonPayload = "{\"temperatura\": " + String(temp, 2) + 
+                     ", \"ecg\": " + String(leitura) + 
+                     ", \"pressao\": " + String(pressureInMmHg, 2) + 
+                     ", \"SensorB\": " + String(leitura1 ) + "}";
 
     // Envia o POST
     int httpResponseCode = http.POST(jsonPayload);
@@ -89,5 +95,5 @@ void loop() {
   Serial.println("Pressão: " + String(pressureInMmHg, 2) + " mmHg");
 
   // Aguarda antes de enviar novamente
-  delay(1); // Envia a cada 10 segundos
+  delay(100); // Envia a cada 10 segundos
 }
